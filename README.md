@@ -1,12 +1,12 @@
-Streaming Anomaly Detection Using Randomized Matrix Sketching
+Streaming Anomaly Detection
 ===
 
 ## Description
 
 My implementation of the algorithms described in:
 
-- **[Huang and S. Kasiviswanathan]**<br>H. Huang and S. Kasiviswanathan, "Streaming Anomaly Detection Using Randomized Matrix Sketching," http://bit.ly/1FaDw6S.
-	
+- **[Huang and Kasiviswanathan]**<br>H. Huang and S. Kasiviswanathan, "Streaming Anomaly Detection Using Randomized Matrix Sketching," http://bit.ly/1FaDw6S.
+
 And I have tried the Cod-RNA experiment and ROC curve-based evaluation, done by the authors.
 
 ## Implemented algorithms
