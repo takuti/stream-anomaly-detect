@@ -10,12 +10,11 @@ from sklearn import preprocessing
 
 class StreamAnomalyDetector:
 
-    def __init__(self, Y0, is_randomized=True, criterion='p', criterion_v=0.5, ell=0):
+    def __init__(self, Y0, criterion='p', criterion_v=0.5, ell=0):
         """Initialize a streaming anomaly detector.
 
         Args:
             Y0 (numpy array): m-by-n training matrix (n normal samples).
-            is_randomized (bool): Choose if randomized matrix sketching is used instead of the original frequent directions.
             criterion (str): 'p' or 'th' to choose how to split sorted samples between anomaly and normal.
             criterion_v (float): Criterion value;
                 'p' takes percentage of anomalies,
@@ -23,8 +22,6 @@ class StreamAnomalyDetector:
             ell (int): Sketch size for a sketched m-by-ell matrix.
 
         """
-
-        self.is_randomized = is_randomized
 
         self.criterion = criterion
         self.criterion_v = criterion_v
@@ -40,18 +37,12 @@ class StreamAnomalyDetector:
 
         Y0 = preprocessing.normalize(Y0, norm='l2', axis=0)
 
-        # initial k orthogonal bases are computed by truncated SVD
-        U, s, V = ln.svd(Y0, full_matrices=False)
-        self.U = U[:, :self.ell]
-        s = s[:self.ell]
+        # first (ell - 1) samples are directly inserted into B columns
+        # ell-th column is set to zero-vector
+        self.B = np.concatenate((Y0[:, :(self.ell - 1)], np.zeros((self.m, 1))), axis=1)
 
-        # shrink step in Frequent Directions algorithm
-        # (shrink singular values based on the squared smallest singular value)
-        delta = s[-1] ** 2
-        s = np.sqrt(s ** 2 - delta)
-
-        # define initial sketched matrix B
-        self.B = np.dot(self.U, np.diag(s))
+        # upddate ell orthogonal bases are computed by truncated SVD
+        self.update(Y0[:, self.ell:])
 
     def detect(self, Y):
         """Alg. 1: Prototype algorithm for detecting anomalies at time t.
@@ -90,14 +81,23 @@ class StreamAnomalyDetector:
             normal_indices = np.where(scores <= th)[0]
 
         # [Step 2] Updating the singular vectors
-        if self.is_randomized:
-            self.rand_sketch_update(Y[:, normal_indices])
-        else:
-            self.sketch_update(Y[:, normal_indices])
+        self.update(Y[:, normal_indices])
 
         return anomaly_indices, normal_indices
 
-    def rand_sketch_update(self, Y):
+    def update(self, Y):
+        """Update the singular vectors at time t.
+
+        Args:
+            Y (numpy array): m-by-n_t matrix which has n_t "normal" unit vectors.
+
+        """
+        pass
+
+
+class RandomizedSketchUpdate(StreamAnomalyDetector):
+
+    def update(self, Y):
         """Alg. 3: Randomized streaming update of the singular vectors at time t.
 
         Args:
@@ -131,7 +131,10 @@ class StreamAnomalyDetector:
 
         self.B = np.dot(self.U, np.diag(s))
 
-    def sketch_update(self, Y):
+
+class SketchUpdate(StreamAnomalyDetector):
+
+    def update(self, Y):
         """Alg. 4: Streaming update of the singular vectors at time t.
 
         Args:
