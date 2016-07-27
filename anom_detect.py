@@ -8,6 +8,7 @@ Implementation of algorithms proposed by:
 
 import numpy as np
 import numpy.linalg as ln
+from sklearn import preprocessing
 
 
 class AnomDetect:
@@ -34,6 +35,8 @@ class AnomDetect:
         else:
             self.ell = ell
 
+        Y0 = preprocessing.normalize(Y0, norm='l2', axis=0)
+
         # initial k orthogonal bases are computed by truncated SVD
         U, s, V = ln.svd(Y0, full_matrices=False)
         self.U = U[:, :self.ell]
@@ -53,6 +56,8 @@ class AnomDetect:
         :param Y: m-by-n_t new observance matrix at time t
         :return: two arrays of non-anomaly indices and anomaly indices
         """
+
+        Y = preprocessing.normalize(Y, norm='l2', axis=0)
 
         # [Step 1] Anomaly score construction step
         n = Y.shape[1]
