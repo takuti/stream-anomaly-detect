@@ -95,6 +95,29 @@ class StreamAnomalyDetector:
         pass
 
 
+class GlobalUpdate(StreamAnomalyDetector):
+
+    def update(self, Y):
+        """Alg. 2: Global update of the singular vectors at time t using exact SVD.
+
+        Args:
+            Y (numpy array): m-by-n_t matrix which has n_t "normal" unit vectors.
+
+        """
+
+        if not hasattr(self, 's'):
+            # initial update
+            F = np.concatenate((self.B[:, :-1], Y), axis=1)
+            U, self.s, V = ln.svd(F, full_matrices=False)
+            self.U_full = U.copy()
+            self.U = U[:, :self.ell]  # ell = k in SVD
+        else:
+            F = np.concatenate((np.diag(self.s), np.dot(self.U_full.T, Y)), axis=1)
+            U, self.s, V = ln.svd(F, full_matrices=False)
+            self.U_full = np.dot(self.U_full, U)
+            self.U = self.U_full[:, :self.ell]
+
+
 class RandomizedSketchUpdate(StreamAnomalyDetector):
 
     def update(self, Y):
