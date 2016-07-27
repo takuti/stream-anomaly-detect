@@ -9,7 +9,9 @@ Implementation of algorithms proposed by:
 import numpy as np
 import numpy.linalg as ln
 
+
 class AnomDetect:
+
     def __init__(self, Y0, criterion='p', criterion_v=0.5, ell=0):
         """
         :param Y0: m-by-n training matrix (n non-anomaly samples)
@@ -25,8 +27,10 @@ class AnomDetect:
         self.m = Y0.shape[0]
 
         # if ell is not specified, it will be set square-root of m (number of features)
-        if ell < 1: self.ell = int(np.sqrt(self.m))
-        else: self.ell = ell
+        if ell < 1:
+            self.ell = int(np.sqrt(self.m))
+        else:
+            self.ell = ell
 
         # initial k orthogonal bases are computed by truncated SVD
         U, s, V = ln.svd(Y0, full_matrices=False)
@@ -57,7 +61,7 @@ class AnomDetect:
             y = Y[:, i]
 
             # solve the least-square problem
-            x = np.dot(self.U.T, y)
+            # x = np.dot(self.U.T, y)
 
             # compute anomaly score
             a = ln.norm(np.dot(np.identity(self.m) - np.dot(self.U, self.U.T), y), ord=2)
@@ -67,7 +71,7 @@ class AnomDetect:
         if self.criterion == 'p':
             p = self.criterion_v
             # top p% high-scored samples will be anomalies
-            sorted_idx = np.argsort(scores)[::-1] # descending order
+            sorted_idx = np.argsort(scores)[::-1]  # descending order
             n_anomaly = int(n * p)
             anomaly_idx = sorted_idx[:n_anomaly]
             non_anomaly_idx = sorted_idx[n_anomaly:]
@@ -88,8 +92,6 @@ class AnomDetect:
         :param Y: m-by-n_t "good" matrix which has n_t non-anomaly samples
         """
 
-        n = Y.shape[1]
-
         # combine current sketched matrix with input at time t
         # D: m-by-(n+ell) matrix
         D = np.hstack((self.B, Y))
@@ -97,7 +99,7 @@ class AnomDetect:
         U, s, V = ln.svd(D, full_matrices=False)
 
         # update k orthogonal bases
-        self.U =  U[:, :self.ell]
+        self.U = U[:, :self.ell]
         s = s[:self.ell]
 
         # shrink step in Frequent Directions algorithm
