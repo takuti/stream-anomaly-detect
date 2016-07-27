@@ -98,7 +98,7 @@ class AnomDetect:
         """
         # combine current sketched matrix with input at time t
         # D: m-by-(n+ell) matrix
-        M = np.hstack((self.B, Y))
+        M = np.hstack((self.B[:, :-1], Y))
 
         O = np.random.normal(0., 0.1, (self.m, 100 * self.ell))
         MM = np.dot(M, M.T)
@@ -130,7 +130,7 @@ class AnomDetect:
 
         # combine current sketched matrix with input at time t
         # D: m-by-(n+ell) matrix
-        D = np.hstack((self.B, Y))
+        D = np.hstack((self.B[:, :-1], Y))
 
         U, s, V = ln.svd(D, full_matrices=False)
 
