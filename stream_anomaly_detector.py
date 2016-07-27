@@ -29,6 +29,8 @@ class StreamAnomalyDetector:
         # number of features
         self.m = Y0.shape[0]
 
+        self.k = int(self.m / 5)
+
         # if ell is not specified, it will be set square-root of m (number of features)
         if ell < 1:
             self.ell = int(np.sqrt(self.m))
@@ -37,12 +39,8 @@ class StreamAnomalyDetector:
 
         Y0 = preprocessing.normalize(Y0, norm='l2', axis=0)
 
-        # first (ell - 1) samples are directly inserted into B columns
-        # ell-th column is set to zero-vector
-        self.B = np.concatenate((Y0[:, :(self.ell - 1)], np.zeros((self.m, 1))), axis=1)
-
-        # upddate ell orthogonal bases are computed by truncated SVD
-        self.update(Y0[:, self.ell:])
+        # initial update
+        self.update(Y0)
 
     def detect(self, Y):
         """Alg. 1: Prototype algorithm for detecting anomalies at time t.
@@ -61,7 +59,7 @@ class StreamAnomalyDetector:
         n = Y.shape[1]
 
         # for each input vector, compute anomaly score
-        scores = ln.norm(np.dot(np.identity(self.m) - np.dot(self.U, self.U.T), Y), axis=0, ord=2)
+        scores = ln.norm(np.dot(np.identity(self.m) - np.dot(self.U_k, self.U_k.T), Y), axis=0, ord=2)
 
         # get both of anomaly/normal indices
         if self.criterion == 'p':
@@ -107,15 +105,13 @@ class GlobalUpdate(StreamAnomalyDetector):
 
         if not hasattr(self, 's'):
             # initial update
-            F = np.concatenate((self.B[:, :-1], Y), axis=1)
-            U, self.s, V = ln.svd(F, full_matrices=False)
-            self.U_full = U.copy()
-            self.U = U[:, :self.ell]  # ell = k in SVD
+            self.U, self.s, V = ln.svd(Y, full_matrices=False)
         else:
-            F = np.concatenate((np.diag(self.s), np.dot(self.U_full.T, Y)), axis=1)
+            F = np.concatenate((np.diag(self.s), np.dot(self.U.T, Y)), axis=1)
             U, self.s, V = ln.svd(F, full_matrices=False)
-            self.U_full = np.dot(self.U_full, U)
-            self.U = self.U_full[:, :self.ell]
+            self.U = np.dot(self.U, U)
+
+        self.U_k = self.U[:, :self.k]
 
 
 class RandomizedSketchUpdate(StreamAnomalyDetector):
@@ -128,9 +124,14 @@ class RandomizedSketchUpdate(StreamAnomalyDetector):
 
         """
 
-        # combine current sketched matrix with input at time t
-        # D: m-by-(n+ell-1) matrix
-        M = np.concatenate((self.B[:, :-1], Y), axis=1)
+        if not hasattr(self, 'E'):
+            # initial sketch
+            M = np.empty_like(Y)
+            M[:] = Y[:]
+        else:
+            # combine current sketched matrix with input at time t
+            # D: m-by-(n+ell-1) matrix
+            M = np.concatenate((self.E[:, :-1], Y), axis=1)
 
         O = np.random.normal(0., 0.1, (self.m, 100 * self.ell))
         MM = np.dot(M, M.T)
@@ -144,15 +145,17 @@ class RandomizedSketchUpdate(StreamAnomalyDetector):
 
         U = np.dot(Q, A)
 
-        # update ell orthogonal bases
-        self.U = U[:, :self.ell]
-        s = s[:self.ell]
+        # update k orthogonal bases
+        self.U_k = U[:, :self.k]
+
+        U_ell = U[:, :self.ell]
+        s_ell = s[:self.ell]
 
         # shrink step in the Frequent Directions algorithm
-        delta = s[-1]
-        s = np.sqrt(s - delta)
+        delta = s_ell[-1]
+        s_ell = np.sqrt(s_ell - delta)
 
-        self.B = np.dot(self.U, np.diag(s))
+        self.E = np.dot(U_ell, np.diag(s_ell))
 
 
 class SketchUpdate(StreamAnomalyDetector):
@@ -165,21 +168,28 @@ class SketchUpdate(StreamAnomalyDetector):
 
         """
 
-        # combine current sketched matrix with input at time t
-        # D: m-by-(n+ell-1) matrix
-        D = np.concatenate((self.B[:, :-1], Y), axis=1)
+        if not hasattr(self, 'B'):
+            # initial sketch
+            D = np.empty_like(Y)
+            D[:] = Y[:]
+        else:
+            # combine current sketched matrix with input at time t
+            # D: m-by-(n+ell-1) matrix
+            D = np.concatenate((self.B[:, :-1], Y), axis=1)
 
         U, s, V = ln.svd(D, full_matrices=False)
 
         # update k orthogonal bases
-        self.U = U[:, :self.ell]
-        s = s[:self.ell]
+        self.U_k = U[:, :self.k]
+
+        U_ell = U[:, :self.ell]
+        s_ell = s[:self.ell]
 
         # shrink step in Frequent Directions algorithm
         # (shrink singular values based on the squared smallest singular value)
-        delta = s[-1] ** 2
-        s = np.sqrt(s ** 2 - delta)
+        delta = s_ell[-1] ** 2
+        s_ell = np.sqrt(s_ell ** 2 - delta)
 
         # update sketched matrix B
         # (focus on column singular vectors)
-        self.B = np.dot(self.U, np.diag(s))
+        self.B = np.dot(U_ell, np.diag(s_ell))
