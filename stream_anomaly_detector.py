@@ -83,7 +83,7 @@ class StreamAnomalyDetector:
         # [Step 2] Updating the singular vectors
         self.update(Y[:, normal_indices])
 
-        return anomaly_indices, normal_indices
+        return anomaly_indices, normal_indices, scores
 
     def update(self, Y):
         """Update the singular vectors at time t.
