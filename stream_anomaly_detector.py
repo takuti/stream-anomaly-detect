@@ -1,7 +1,4 @@
-# coding: utf-8
-
-"""
-Implementation of algorithms proposed by:
+"""Implementation of algorithms proposed by:
 
     H. Huang and S. Kasiviswanathan, "Streaming Anomaly Detection Using Randomized Matrix Sketching," http://bit.ly/1FaDw6S.
 """
@@ -11,14 +8,20 @@ import numpy.linalg as ln
 from sklearn import preprocessing
 
 
-class AnomDetect:
+class StreamAnomalyDetector:
 
     def __init__(self, Y0, is_randomized=True, criterion='p', criterion_v=0.5, ell=0):
-        """
-        :param Y0: m-by-n training matrix (n non-anomaly samples)
-        :param criterion: 'p' or 'th' to choose how to split sorted samples between anomaly and non-anomaly
-        :param criterion_v: criterion value; 'p': percentage of anomalies, 'th': threshold of the anomaly score
-        :param ell: sketch size for a sketched m-by-ell matrix
+        """Initialize a streaming anomaly detector.
+
+        Args:
+            Y0 (numpy array): m-by-n training matrix (n normal samples).
+            is_randomized (bool): Choose if randomized matrix sketching is used instead of the original frequent directions.
+            criterion (str): 'p' or 'th' to choose how to split sorted samples between anomaly and normal.
+            criterion_v (float): Criterion value;
+                'p' takes percentage of anomalies,
+                'th' employs threshold of the anomaly scores.
+            ell (int): Sketch size for a sketched m-by-ell matrix.
+
         """
 
         self.is_randomized = is_randomized
@@ -51,59 +54,60 @@ class AnomDetect:
         self.B = np.dot(self.U, np.diag(s))
 
     def detect(self, Y):
-        """
-        Alg. 1: Prototype algorithm for detecting anomalies at time t
-        :param Y: m-by-n_t new observance matrix at time t
-        :return: two arrays of non-anomaly indices and anomaly indices
+        """Alg. 1: Prototype algorithm for detecting anomalies at time t.
+
+        Args:
+            Y (numpy array): m-by-n_t new abservance matrix at time t.
+
+        Returns:
+            (numpy array, numpy array): Arrays for indices of anomaly and normal samples.
+
         """
 
         Y = preprocessing.normalize(Y, norm='l2', axis=0)
 
         # [Step 1] Anomaly score construction step
         n = Y.shape[1]
-        scores = np.array([])
 
-        # for each input vector
-        for i in range(n):
-            y = Y[:, i]
+        # for each input vector, compute anomaly score
+        scores = ln.norm(np.dot(np.identity(self.m) - np.dot(self.U, self.U.T), Y), axis=0, ord=2)
 
-            # solve the least-square problem
-            # x = np.dot(self.U.T, y)
-
-            # compute anomaly score
-            a = ln.norm(np.dot(np.identity(self.m) - np.dot(self.U, self.U.T), y), ord=2)
-            scores = np.append(scores, a)
-
-        # get both of anomaly/non-anomaly indices
+        # get both of anomaly/normal indices
         if self.criterion == 'p':
             p = self.criterion_v
-            # top p% high-scored samples will be anomalies
-            sorted_idx = np.argsort(scores)[::-1]  # descending order
+
+            # top (p * 100)% high-scored samples will be anomalies
             n_anomaly = int(n * p)
-            anomaly_idx = sorted_idx[:n_anomaly]
-            non_anomaly_idx = sorted_idx[n_anomaly:]
+
+            sorted_indices = np.argsort(scores)[::-1]
+            anomaly_indices = sorted_indices[:n_anomaly]
+            normal_indices = sorted_indices[n_anomaly:]
         elif self.criterion == 'th':
             th = self.criterion_v
+
             # thresholding the anomaly score
-            anomaly_idx = np.where(scores > th)[0]
-            non_anomaly_idx = np.where(scores <= th)[0]
+            anomaly_indices = np.where(scores > th)[0]
+            normal_indices = np.where(scores <= th)[0]
 
         # [Step 2] Updating the singular vectors
         if self.is_randomized:
-            self.rand_sketch_update(Y[:, non_anomaly_idx])
+            self.rand_sketch_update(Y[:, normal_indices])
         else:
-            self.sketch_update(Y[:, non_anomaly_idx])
+            self.sketch_update(Y[:, normal_indices])
 
-        return anomaly_idx, non_anomaly_idx
+        return anomaly_indices, normal_indices
 
     def rand_sketch_update(self, Y):
+        """Alg. 3: Randomized streaming update of the singular vectors at time t.
+
+        Args:
+            Y (numpy array): m-by-n_t matrix which has n_t "normal" unit vectors.
+
         """
-        Alg. 3: Randomized streaming update of the singular vectors at time t
-        :param Y: m-by-n_t "good" matrix which has n_t non-anomaly samples
-        """
+
         # combine current sketched matrix with input at time t
-        # D: m-by-(n+ell) matrix
-        M = np.hstack((self.B[:, :-1], Y))
+        # D: m-by-(n+ell-1) matrix
+        M = np.concatenate((self.B[:, :-1], Y), axis=1)
 
         O = np.random.normal(0., 0.1, (self.m, 100 * self.ell))
         MM = np.dot(M, M.T)
@@ -128,14 +132,16 @@ class AnomDetect:
         self.B = np.dot(self.U, np.diag(s))
 
     def sketch_update(self, Y):
-        """
-        Alg. 4: Streaming update of the singular vectors at time t
-        :param Y: m-by-n_t "good" matrix which has n_t non-anomaly samples
+        """Alg. 4: Streaming update of the singular vectors at time t.
+
+        Args:
+            Y (numpy array): m-by-n_t matrix which has n_t "normal" unit vectors.
+
         """
 
         # combine current sketched matrix with input at time t
-        # D: m-by-(n+ell) matrix
-        D = np.hstack((self.B[:, :-1], Y))
+        # D: m-by-(n+ell-1) matrix
+        D = np.concatenate((self.B[:, :-1], Y), axis=1)
 
         U, s, V = ln.svd(D, full_matrices=False)
 
