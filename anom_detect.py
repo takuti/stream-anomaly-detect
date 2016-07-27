@@ -12,13 +12,15 @@ import numpy.linalg as ln
 
 class AnomDetect:
 
-    def __init__(self, Y0, criterion='p', criterion_v=0.5, ell=0):
+    def __init__(self, Y0, is_randomized=True, criterion='p', criterion_v=0.5, ell=0):
         """
         :param Y0: m-by-n training matrix (n non-anomaly samples)
         :param criterion: 'p' or 'th' to choose how to split sorted samples between anomaly and non-anomaly
         :param criterion_v: criterion value; 'p': percentage of anomalies, 'th': threshold of the anomaly score
         :param ell: sketch size for a sketched m-by-ell matrix
         """
+
+        self.is_randomized = is_randomized
 
         self.criterion = criterion
         self.criterion_v = criterion_v
@@ -82,7 +84,10 @@ class AnomDetect:
             non_anomaly_idx = np.where(scores <= th)[0]
 
         # [Step 2] Updating the singular vectors
-        self.sketch_update(Y[:, non_anomaly_idx])
+        if self.is_randomized:
+            self.rand_sketch_update(Y[:, non_anomaly_idx])
+        else:
+            self.sketch_update(Y[:, non_anomaly_idx])
 
         return anomaly_idx, non_anomaly_idx
 
