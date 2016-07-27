@@ -86,6 +86,37 @@ class AnomDetect:
 
         return anomaly_idx, non_anomaly_idx
 
+    def rand_sketch_update(self, Y):
+        """
+        Alg. 3: Randomized streaming update of the singular vectors at time t
+        :param Y: m-by-n_t "good" matrix which has n_t non-anomaly samples
+        """
+        # combine current sketched matrix with input at time t
+        # D: m-by-(n+ell) matrix
+        M = np.hstack((self.B, Y))
+
+        O = np.random.normal(0., 0.1, (self.m, 100 * self.ell))
+        MM = np.dot(M, M.T)
+        Q, R = ln.qr(np.dot(MM, O))
+
+        # eig() returns eigen values/vectors with unsorted order
+        s, A = ln.eig(np.dot(np.dot(Q.T, MM), Q))
+        order = np.argsort(s)[::-1]
+        s = s[order]
+        A = A[:, order]
+
+        U = np.dot(Q, A)
+
+        # update ell orthogonal bases
+        self.U = U[:, :self.ell]
+        s = s[:self.ell]
+
+        # shrink step in the Frequent Directions algorithm
+        delta = s[-1]
+        s = np.sqrt(s - delta)
+
+        self.B = np.dot(self.U, np.diag(s))
+
     def sketch_update(self, Y):
         """
         Alg. 4: Streaming update of the singular vectors at time t
