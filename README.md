@@ -3,21 +3,25 @@ Streaming Anomaly Detection
 
 ## Description
 
-My implementation of the algorithms described in:
+My implementation of the algorithms introduced in:
 
-- **[Huang and Kasiviswanathan]**<br>H. Huang and S. Kasiviswanathan, "Streaming Anomaly Detection Using Randomized Matrix Sketching," http://bit.ly/1FaDw6S.
+- **[Huang and Kasiviswanathan]**<br>**[Streaming Anomaly Detection Using Randomized Matrix Sketching](http://dl.acm.org/citation.cfm?id=2850593)**<br>H. Huang and S. Kasiviswanathan<br>*Proceedings of the VLDB Endowment*, 9 (3), pp. 192-203, 2015
 
-And I have tried the Cod-RNA experiment and ROC curve-based evaluation, done by the authors.
+Additionally, I have tried the Cod-RNA experiment and ROC-curve-based evaluation as the authors did.
 
 ## Implemented algorithms
 
 - [x] Algorithm 1: **AnomDetect**
-	- overall algorithm of this framework
-- [ ] Algorithm 2: **GlobalUpdate**
-	- incremental SVD-based updating
-- [ ] Algorithm 3: **RandSketchUpdate**
-	- randomized matrix sketching-based updating
+	- Overall algorithm of this framework
+- [x] Algorithm 2: **GlobalUpdate**
+	- Incremental-SVD-based exact updating
+- [x] Algorithm 3: **RandSketchUpdate**
+	- Randomized-matrix-sketching-based fast updating
 - [x] Algorithm 4: **SketchUpdate**
-	- Frequent Directions-based updating
+	- Matrix sketching (i.e. frequent directions) based deterministic updating
 
-Both for the incremental SVD-based and Frequent Directions-based updating, you can refer [my old experimental work](https://github.com/takuti/incremental-matrix-approximation).
+Both for the incremental-SVD-based and frequent-direction-based updating, you can refer [my old experimental work](https://github.com/takuti/incremental-matrix-approximation).
+
+## License
+
+MIT
